@@ -1,0 +1,9 @@
+project_id,project_type,material_type,region,wind_exposure,technical_complexity,design_repetition,installation_model,actual_margin_percent,outcome,notes
+NO-FAC-001,Facade,Standard aluminum profiles,Urban,Medium,Medium,Partially similar,Company installation,16.5,Completed profitably,Standard facade with moderate engineering changes
+NO-FAC-002,Facade,Non-standard aluminum profiles,Coastal,High,High,New design,Company installation,6.8,Margin pressure,Delayed profile confirmation and additional wind-load checks
+NO-WIN-003,Windows,Timber-aluminum windows,Inland,Low,Low,Repeated,Client installation,21.3,Completed profitably,Repeated window package with clear installation responsibility
+NO-DOOR-004,Doors,Steel elements,Industrial,Medium,Medium,Partially similar,Mixed installation,12.4,Acceptable with issues,Industrial coating requirements increased preparation effort
+NO-FAC-005,Facade + windows,Glass-heavy facade,Coastal,High,High,Partially similar,Company installation,9.6,High risk realized,Glass procurement and coastal exposure created schedule pressure
+NO-WIN-006,Windows,Standard aluminum profiles,Urban,Low,Low,Repeated,Company installation,24.8,Completed profitably,Repeated apartment block solution with stable supplier lead time
+NO-FAC-007,Facade,Glass-heavy facade,Mountain,High,High,New design,Mixed installation,8.1,High risk realized,Wind and logistics constraints required additional engineering
+NO-DOOR-008,Doors,Standard aluminum profiles,Inland,Low,Low,Repeated,Client installation,19.4,Completed profitably,Simple package with limited technical uncertainty
