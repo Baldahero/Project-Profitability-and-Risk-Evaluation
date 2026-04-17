@@ -1,11 +1,24 @@
 from __future__ import annotations
 
+import io
 import sys
 from datetime import date, timedelta
 from html import escape
 from pathlib import Path
 
 import streamlit as st
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.platypus import (
+    HRFlowable,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "src"
@@ -487,7 +500,7 @@ def main() -> None:
     result = evaluate_project(project, historical_projects)
 
     with output_column:
-        render_header(project, result)
+        render_header(project, result, pricing_estimate)
         render_summary(result, project)
 
         price_tab, scoring_tab, matrix_tab, history_tab = st.tabs(
@@ -683,7 +696,157 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
     return project, pricing_estimate
 
 
-def render_header(project: ProjectInput, result) -> None:
+def generate_pdf_report(project, result, pricing_estimate) -> bytes:
+    """Generate a PDF report and return it as bytes."""
+    import io as _io
+    from reportlab.lib import colors as rl_colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import (
+        HRFlowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+    )
+
+    buffer = _io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        leftMargin=20*mm, rightMargin=20*mm, topMargin=20*mm, bottomMargin=20*mm,
+    )
+    styles = getSampleStyleSheet()
+    ink = rl_colors.HexColor("#1a2420")
+    muted = rl_colors.HexColor("#6b7c75")
+    lime = rl_colors.HexColor("#4a8c1c")
+    cyan = rl_colors.HexColor("#0e8f9c")
+    coral = rl_colors.HexColor("#d94f45")
+    light_bg = rl_colors.HexColor("#f4f7f5")
+    line_color = rl_colors.HexColor("#d4ddd8")
+
+    tone_color = {"good": lime, "watch": cyan, "critical": coral}
+    tone = _risk_tone(result.risk_level)
+    accent = tone_color.get(tone, cyan)
+
+    title_style = ParagraphStyle("RPTitle", parent=styles["Title"], textColor=ink, fontSize=22, spaceAfter=4)
+    subtitle_style = ParagraphStyle("RPSubtitle", parent=styles["Normal"], textColor=muted, fontSize=10, spaceAfter=10)
+    h2_style = ParagraphStyle("RPH2", parent=styles["Heading2"], textColor=ink, fontSize=14, spaceBefore=14, spaceAfter=6)
+    eyebrow_style = ParagraphStyle("RPEyebrow", parent=styles["Normal"], textColor=muted, fontSize=8, fontName="Helvetica-Bold", spaceAfter=2)
+    normal_style = ParagraphStyle("RPNormal", parent=styles["Normal"], textColor=ink, fontSize=10)
+    small_style = ParagraphStyle("RPSmall", parent=styles["Normal"], textColor=muted, fontSize=8)
+
+    def _tbl(data, col_widths=None):
+        w = A4[0] - 40*mm
+        if col_widths is None:
+            n = len(data[0])
+            col_widths = [w/n]*n
+        t = Table(data, colWidths=col_widths)
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), light_bg),
+            ("TEXTCOLOR", (0, 0), (-1, 0), muted),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, 0), 8),
+            ("FONTSIZE", (0, 1), (-1, -1), 9),
+            ("TEXTCOLOR", (0, 1), (-1, -1), ink),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [rl_colors.white, light_bg]),
+            ("GRID", (0, 0), (-1, -1), 0.5, line_color),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        return t
+
+    story = []
+
+    # Header
+    from datetime import date as _date
+    story.append(Paragraph(project.project_name, title_style))
+    story.append(Paragraph(
+        f"Type: {project.project_type}  ·  Target: {project.requested_deadline.isoformat()}  ·  "
+        f"Generated: {_date.today().isoformat()}",
+        subtitle_style,
+    ))
+    story.append(HRFlowable(width="100%", thickness=2, color=accent, spaceAfter=10))
+
+    # Risk & Efficiency
+    story.append(Paragraph("DECISION SIGNAL", eyebrow_style))
+    story.append(Paragraph("Risk and Efficiency Evaluation", h2_style))
+    metrics_data = [
+        ["METRIC", "VALUE", "NOTE"],
+        ["Efficiency Score", f"{result.efficiency_score:.1f} / 100", "Weighted tender readiness"],
+        ["Risk Level", result.risk_level, "Current decision band"],
+        ["Target Implementation", project.requested_deadline.isoformat(), "Customer target date"],
+        ["Earliest Implementation", result.readiness_date.isoformat(), "Material lead time + preparation"],
+        ["Material Lead Time", f"{result.material_lead_time_weeks} weeks", ""],
+        ["Total Timeline", f"{result.total_preparation_weeks:g} weeks", ""],
+        ["Package Volume", f"{project.element_quantity} units", f"{project.package_area_m2:.0f} m2"],
+    ]
+    story.append(_tbl(metrics_data, [70*mm, 55*mm, 50*mm]))
+    story.append(Spacer(1, 8))
+
+    # Alerts
+    story.append(Paragraph("ALERTS", eyebrow_style))
+    if result.alerts:
+        for alert in result.alerts:
+            story.append(Paragraph(f"- {alert}", ParagraphStyle("RPAlert", parent=normal_style, textColor=coral)))
+    else:
+        story.append(Paragraph("No critical alerts for current inputs.", ParagraphStyle("RPOK", parent=normal_style, textColor=lime)))
+    story.append(Spacer(1, 10))
+
+    # Pricing
+    story.append(HRFlowable(width="100%", thickness=0.5, color=line_color, spaceAfter=6))
+    story.append(Paragraph("COMMERCIAL VIEW", eyebrow_style))
+    story.append(Paragraph("Price Build-up", h2_style))
+    price_data = [
+        ["COMPONENT", "PER UNIT", "TOTAL"],
+        ["Material", _gbp(pricing_estimate.material_gbp), _gbp(pricing_estimate.total_material_gbp)],
+        ["Glass unit", _gbp(pricing_estimate.glass_gbp), _gbp(pricing_estimate.total_glass_gbp)],
+        ["Labour work", _gbp(pricing_estimate.labour_gbp), _gbp(pricing_estimate.total_labour_gbp)],
+        ["Coating", _gbp(pricing_estimate.coating_gbp), _gbp(pricing_estimate.total_coating_gbp)],
+        [f"Margin ({pricing_estimate.margin_rate * 100:.0f}%)", _gbp(pricing_estimate.margin_gbp), _gbp(pricing_estimate.total_margin_gbp)],
+        ["TOTAL FINAL PRICE", _gbp(pricing_estimate.final_price_gbp), _gbp(pricing_estimate.total_final_price_gbp)],
+    ]
+    pt = _tbl(price_data, [80*mm, 50*mm, 45*mm])
+    pt.setStyle(TableStyle([
+        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+        ("BACKGROUND", (0, -1), (-1, -1), light_bg),
+    ]))
+    story.append(pt)
+    story.append(Spacer(1, 10))
+
+    # Scoring breakdown
+    story.append(HRFlowable(width="100%", thickness=0.5, color=line_color, spaceAfter=6))
+    story.append(Paragraph("RULE TRACE", eyebrow_style))
+    story.append(Paragraph("Scoring Logic", h2_style))
+    score_data = [["CRITERION", "SCORE", "WEIGHT", "EXPLANATION"]]
+    for key, value in result.score_breakdown.items():
+        score_data.append([
+            key.replace("_", " ").title(),
+            str(value),
+            f"{_score_weight(key) * 100:.0f}%",
+            result.explanations[key],
+        ])
+    story.append(_tbl(score_data, [35*mm, 18*mm, 18*mm, 104*mm]))
+    story.append(Spacer(1, 10))
+
+    # Checklist
+    story.append(Paragraph("NEXT ACTIONS", eyebrow_style))
+    story.append(Paragraph("Generated Checklist", h2_style))
+    for item in result.checklist:
+        story.append(Paragraph(f"  {item}", normal_style))
+    story.append(Spacer(1, 6))
+
+    # Footer
+    story.append(HRFlowable(width="100%", thickness=0.5, color=line_color, spaceBefore=10, spaceAfter=4))
+    story.append(Paragraph(
+        f"Construction Project Efficiency Estimator  ·  {_date.today().isoformat()}",
+        small_style,
+    ))
+
+    doc.build(story)
+    return buffer.getvalue()
+
+
+
+def render_header(project: ProjectInput, result, pricing_estimate) -> None:
     tone = _risk_tone(result.risk_level)
     st.markdown(
         f"""
@@ -700,6 +863,14 @@ def render_header(project: ProjectInput, result) -> None:
         </section>
         """,
         unsafe_allow_html=True,
+    )
+    pdf_bytes = generate_pdf_report(project, result, pricing_estimate)
+    filename = project.project_name.lower().replace(" ", "_") + ".pdf"
+    st.download_button(
+        label="📄 Download PDF Report",
+        data=pdf_bytes,
+        file_name=filename,
+        mime="application/pdf",
     )
 
 
