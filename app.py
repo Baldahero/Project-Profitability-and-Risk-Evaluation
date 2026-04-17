@@ -1,24 +1,19 @@
 from __future__ import annotations
 
 import io
+import subprocess
 import sys
 from datetime import date, timedelta
 from html import escape
 from pathlib import Path
 
+# Auto-install reportlab if missing (needed on Streamlit Cloud)
+try:
+    import reportlab  # noqa: F401
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "reportlab", "-q"])
+
 import streamlit as st
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import mm
-from reportlab.platypus import (
-    HRFlowable,
-    Paragraph,
-    SimpleDocTemplate,
-    Spacer,
-    Table,
-    TableStyle,
-)
 
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "src"
