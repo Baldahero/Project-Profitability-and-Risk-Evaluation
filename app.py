@@ -31,17 +31,17 @@ PACKAGE_IDS_STATE_KEY = "element_package_ids"
 APP_CSS = """
 <style>
 :root {
-    --ink: #f3f6f1;
-    --muted: #aab5ad;
-    --line: #2f3a35;
-    --surface: #171d1a;
-    --surface-soft: #101513;
-    --lime: #8bc34a;
-    --cyan: #23b9c6;
-    --coral: #ff6b60;
-    --app-bg: #0d1110;
-    --sidebar-bg: #151b18;
-    --input-bg: #0b0f0e;
+    --ink: #1a2420;
+    --muted: #6b7c75;
+    --line: #d4ddd8;
+    --surface: #ffffff;
+    --surface-soft: #f4f7f5;
+    --lime: #4a8c1c;
+    --cyan: #0e8f9c;
+    --coral: #d94f45;
+    --app-bg: #f0f4f2;
+    --sidebar-bg: #ffffff;
+    --input-bg: #ffffff;
 }
 
 .stApp {
@@ -69,7 +69,8 @@ footer {
 }
 
 [data-testid="stHeader"] {
-    background: rgba(13, 17, 16, 0.92);
+    background: rgba(240, 244, 242, 0.95);
+    border-bottom: 1px solid var(--line);
 }
 
 button, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-primary"] {
@@ -90,12 +91,6 @@ button, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-prima
     padding-top: 1rem;
 }
 
-[data-testid="stSidebar"] p,
-[data-testid="stSidebar"] label,
-[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {
-    color: var(--ink) !important;
-}
-
 [data-testid="stSidebar"] small,
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"],
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
@@ -107,28 +102,19 @@ button, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-prima
 [data-testid="stSidebar"] [data-baseweb="select"] > div,
 [data-testid="stSidebar"] [data-baseweb="input"] > div {
     background: var(--input-bg) !important;
-    border: 1px solid #3a4741 !important;
+    border: 1px solid var(--line) !important;
     border-radius: 8px !important;
     color: var(--ink) !important;
 }
 
-[data-testid="stSidebar"] input::placeholder {
-    color: #8f9a93 !important;
-}
-
 [data-testid="stSidebar"] button {
-    background: var(--input-bg) !important;
-    border-color: #3a4741 !important;
+    background: var(--surface-soft) !important;
+    border-color: var(--line) !important;
     color: var(--ink) !important;
-}
-
-[data-testid="stSidebar"] svg {
-    color: var(--ink) !important;
-    fill: currentColor !important;
 }
 
 [data-testid="stSidebar"] [data-testid="stMetric"] {
-    background: var(--surface);
+    background: var(--surface-soft);
     border: 1px solid var(--line);
     border-radius: 8px;
     padding: 0.8rem;
@@ -139,14 +125,14 @@ button, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-prima
     border: 1px solid var(--line);
     border-radius: 8px;
     padding: 1rem;
-    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.26);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 [data-testid="stVerticalBlockBorderWrapper"] {
-    background: var(--sidebar-bg);
+    background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 8px;
-    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     overflow: visible !important;
 }
 
@@ -184,6 +170,7 @@ button, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-prima
 .stTabs [data-baseweb="tab-list"] {
     gap: 0.4rem;
     border-bottom: 1px solid var(--line);
+    background: transparent;
 }
 
 [data-baseweb="popover"] {
@@ -193,6 +180,7 @@ button, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-prima
 .stTabs [data-baseweb="tab"] {
     border-radius: 8px 8px 0 0;
     padding: 0.7rem 1rem;
+    background: transparent;
 }
 
 .stTabs [data-baseweb="tab"] p {
@@ -202,6 +190,15 @@ button, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-prima
 .stTabs [aria-selected="true"] p {
     color: var(--coral) !important;
 }
+
+/* Input fields light styling */
+input, textarea, [data-baseweb="select"] > div, [data-baseweb="input"] > div {
+    background: var(--input-bg) !important;
+    border-color: var(--line) !important;
+    color: var(--ink) !important;
+}
+
+/* ---- Custom components ---- */
 
 .app-header {
     margin: 0 0 1.25rem;
@@ -221,6 +218,7 @@ button, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-prima
     font-size: 2.5rem;
     line-height: 1.07;
     margin: 0;
+    color: var(--ink);
 }
 
 .header-subtitle {
@@ -243,6 +241,7 @@ button, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-prima
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 8px;
+    color: var(--ink);
     display: inline-flex;
     font-size: 0.88rem;
     gap: 0.35rem;
@@ -253,21 +252,21 @@ button, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-prima
 }
 
 .status-pill.good {
-    background: #172612;
-    border-color: #5f9f37;
-    color: #b8ef86;
+    background: #eef7e6;
+    border-color: #6aaa2e;
+    color: #2d6010;
 }
 
 .status-pill.watch {
-    background: #102629;
-    border-color: #278d98;
-    color: #92edf4;
+    background: #e6f5f7;
+    border-color: #2a9daa;
+    color: #0d5f68;
 }
 
 .status-pill.critical {
-    background: #2c1715;
-    border-color: #aa443d;
-    color: #ffb7b0;
+    background: #fdecea;
+    border-color: #c9433b;
+    color: #8b1c18;
 }
 
 .section-heading {
@@ -278,6 +277,7 @@ button, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-prima
     font-size: 1.45rem;
     line-height: 1.25;
     margin: 0;
+    color: var(--ink);
 }
 
 .section-heading p {
@@ -289,7 +289,7 @@ button, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-prima
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 8px;
-    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.26);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     min-height: 132px;
     padding: 1rem;
 }
@@ -360,10 +360,11 @@ button, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-prima
     gap: 0.75rem;
     justify-content: space-between;
     margin-bottom: 0.75rem;
+    color: var(--ink);
 }
 
 .score-rail {
-    background: #26302b;
+    background: #e2e8e5;
     border-radius: 8px;
     height: 14px;
     overflow: hidden;
@@ -384,23 +385,27 @@ button, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-prima
 }
 
 .callout.good {
-    background: #162211;
-    border-color: #5f9f37;
+    background: #f0f9e8;
+    border-color: #6aaa2e;
+    color: var(--ink);
 }
 
 .callout.watch {
-    background: #102629;
-    border-color: #278d98;
+    background: #e8f6f8;
+    border-color: #2a9daa;
+    color: var(--ink);
 }
 
 .callout.critical {
-    background: #2a1715;
-    border-color: #aa443d;
+    background: #fdf0ef;
+    border-color: #c9433b;
+    color: var(--ink);
 }
 
 .callout h3 {
     font-size: 1.05rem;
     margin: 0 0 0.6rem;
+    color: var(--ink);
 }
 
 .callout ul {
@@ -410,10 +415,11 @@ button, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-prima
 
 .callout li {
     margin: 0.3rem 0;
+    color: var(--ink);
 }
 
 .source-note {
-    background: var(--surface);
+    background: var(--surface-soft);
     border: 1px solid var(--line);
     border-radius: 8px;
     color: var(--muted);
