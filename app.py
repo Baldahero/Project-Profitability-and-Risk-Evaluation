@@ -75,6 +75,7 @@ footer {
 
 button, [data-testid="stBaseButton-secondary"], [data-testid="stBaseButton-primary"] {
     border-radius: 8px !important;
+    white-space: nowrap !important;
 }
 
 [data-testid="stSidebar"] {
@@ -516,7 +517,7 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
         if position > 1:
             st.divider()
 
-        heading_col, action_col = st.columns([0.72, 0.28])
+        heading_col, action_col = st.columns([0.60, 0.40])
         with heading_col:
             st.caption(f"Construction {position}")
         with action_col:
