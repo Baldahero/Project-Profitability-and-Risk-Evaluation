@@ -39,6 +39,10 @@ SCORE_WEIGHTS = {
 
 DAYS_PER_WEEK = 7
 
+# Additional cost deductions from contract value
+PACKAGING_RATE = 0.03    # 3% of contract value
+TRANSPORT_RATE = 0.125   # 12.5% of contract value
+
 
 def load_historical_projects(path: str | Path) -> list[HistoricalProject]:
     path = Path(path)
@@ -71,6 +75,7 @@ def evaluate_project(
     explanations: dict[str, str] = {}
 
     margin_percent = _calculate_margin(project.contract_value, project.estimated_cost)
+    cost_breakdown = _calculate_cost_breakdown(project.contract_value, project.estimated_cost)
     financial_score = _financial_score(margin_percent, alerts, explanations)
 
     material_lead_time_weeks = _estimate_material_lead_time(project)
@@ -106,6 +111,7 @@ def evaluate_project(
 
     return EvaluationResult(
         margin_percent=round(margin_percent, 1),
+        cost_breakdown=cost_breakdown,
         efficiency_score=efficiency_score,
         risk_level=risk_level,
         readiness_date=readiness_date,
@@ -125,7 +131,24 @@ def evaluate_project(
 def _calculate_margin(contract_value: float, estimated_cost: float) -> float:
     if contract_value <= 0:
         return 0.0
-    return (contract_value - estimated_cost) / contract_value * 100
+    packaging_cost = contract_value * PACKAGING_RATE
+    transport_cost = contract_value * TRANSPORT_RATE
+    return (contract_value - estimated_cost - packaging_cost - transport_cost) / contract_value * 100
+
+
+def _calculate_cost_breakdown(contract_value: float, estimated_cost: float) -> dict:
+    packaging_cost = round(contract_value * PACKAGING_RATE, 2)
+    transport_cost = round(contract_value * TRANSPORT_RATE, 2)
+    total_deductions = estimated_cost + packaging_cost + transport_cost
+    net_margin = contract_value - total_deductions
+    return {
+        "contract_value": round(contract_value, 2),
+        "estimated_cost": round(estimated_cost, 2),
+        "packaging_cost": packaging_cost,
+        "transport_cost": transport_cost,
+        "total_deductions": round(total_deductions, 2),
+        "net_margin_value": round(net_margin, 2),
+    }
 
 
 def _financial_score(
@@ -133,23 +156,24 @@ def _financial_score(
     alerts: list[str],
     explanations: dict[str, str],
 ) -> float:
+    # Note: margin_percent already includes packaging (3%) and transport (12.5%) deductions
     if margin_percent >= 20:
         score = 100
-        message = "Margin is strong for early-stage project screening."
+        message = "Margin is strong after packaging and transport deductions (3% + 12.5% of contract value)."
     elif margin_percent >= 15:
         score = 85
-        message = "Margin is acceptable, but should be monitored against technical risks."
+        message = "Margin is acceptable after packaging and transport deductions; monitor against technical risks."
     elif margin_percent >= 10:
         score = 65
-        message = "Margin is moderate and leaves limited room for uncertainty."
+        message = "Margin is moderate after packaging (3%) and transport (12.5%) deductions; limited room for uncertainty."
     elif margin_percent >= 5:
         score = 40
-        message = "Margin is low and should be reviewed before tender submission."
-        alerts.append("Project margin is below 10%; perform pricing and contingency review.")
+        message = "Margin is low after packaging and transport deductions; review before tender submission."
+        alerts.append("Project margin is below 10% after packaging (3%) and transport (12.5%) deductions; perform pricing review.")
     else:
         score = 20
-        message = "Margin is critical and may not absorb execution risks."
-        alerts.append("Project margin is below 5%; commercial approval is recommended.")
+        message = "Margin is critical after packaging and transport deductions; may not absorb execution risks."
+        alerts.append("Project margin is below 5% after packaging (3%) and transport (12.5%) deductions; commercial approval required.")
 
     explanations["financial"] = message
     return score
