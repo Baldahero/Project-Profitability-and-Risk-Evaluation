@@ -123,6 +123,7 @@ class EvaluationResult:
     protection_requirement: str
     score_breakdown: dict[str, float]
     explanations: dict[str, str]
+    cost_breakdown: dict[str, float] = field(default_factory=dict)
     alerts: list[str] = field(default_factory=list)
     checklist: list[str] = field(default_factory=list)
     similar_projects: list[dict[str, Any]] = field(default_factory=list)
