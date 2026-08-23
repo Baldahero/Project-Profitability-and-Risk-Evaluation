@@ -661,6 +661,33 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
     )
 
     st.divider()
+    st.subheader("Security Requirements")
+    package_contains_openings = any(
+        "window" in row["element_type"].lower() or "door" in row["element_type"].lower()
+        for row in package_rows
+    )
+    pas24_required = st.checkbox(
+        "PAS 24 compliance required",
+        value=package_contains_openings,
+        help=(
+            "PAS 24 is modelled separately from RC2/RC3, so PAS 24 and RC3 can be "
+            "selected together when both requirements apply."
+        ),
+    )
+    resistance_class = st.selectbox(
+        "Burglary resistance class",
+        ["None", "RC2", "RC3"],
+        help="Select only when the project specification explicitly requires RC2 or RC3.",
+    )
+    access_control_required = st.checkbox(
+        "Access control / electric locking required",
+    )
+    st.caption(
+        "Security selections are project inputs. They must be supported by the project specification; "
+        "the estimator does not verify certification."
+    )
+
+    st.divider()
     st.subheader("Known Uncertainties")
     non_standard_profiles = st.checkbox("Non-standard profiles")
     incomplete_drawings = st.checkbox("Incomplete drawings")
@@ -687,6 +714,9 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
         non_standard_profiles=non_standard_profiles,
         incomplete_drawings=incomplete_drawings,
         missing_installation_details=missing_installation_details,
+        pas24_required=pas24_required,
+        resistance_class=resistance_class,
+        access_control_required=access_control_required,
     )
     return project, pricing_estimate
 
@@ -773,6 +803,7 @@ def generate_pdf_report(project, result, pricing_estimate) -> bytes:
         ["Material Lead Time", f"{result.material_lead_time_weeks} weeks", ""],
         ["Total Timeline", f"{result.total_preparation_weeks:g} weeks", ""],
         ["Package Volume", f"{project.element_quantity} units", f"{project.package_area_m2:.0f} m2"],
+        ["Security Requirements", result.security_requirement, "Project input; evidence must be checked"],
     ]
     story.append(_tbl(metrics_data, [70*mm, 55*mm, 50*mm]))
     story.append(Spacer(1, 8))
@@ -853,6 +884,7 @@ def render_header(project: ProjectInput, result, pricing_estimate) -> None:
             <div class="header-meta">
                 <span class="meta-pill">Type: {escape(project.project_type)}</span>
                 <span class="meta-pill">Target: {escape(project.requested_deadline.isoformat())}</span>
+                <span class="meta-pill">Security: {escape(result.security_requirement)}</span>
                 <span class="status-pill {tone}">{escape(result.risk_level)}</span>
             </div>
         </section>
@@ -899,6 +931,12 @@ def render_summary(result, project: ProjectInput) -> None:
         )
 
     _score_panel(result.efficiency_score, result.risk_level)
+
+    st.markdown(
+        f'<div class="source-note"><strong>Security requirement:</strong> '
+        f'{escape(result.security_requirement)}. Evidence and certification remain subject to project review.</div>',
+        unsafe_allow_html=True,
+    )
 
     lead_first, lead_second, lead_third, lead_fourth = st.columns(4)
     with lead_first:
