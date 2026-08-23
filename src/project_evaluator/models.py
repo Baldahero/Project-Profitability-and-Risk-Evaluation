@@ -27,6 +27,9 @@ class ProjectInput:
     non_standard_profiles: bool = False
     incomplete_drawings: bool = False
     missing_installation_details: bool = False
+    pas24_required: bool = False
+    resistance_class: str = "None"
+    access_control_required: bool = False
 
 
 @dataclass(frozen=True)
@@ -121,6 +124,7 @@ class EvaluationResult:
     preparation_weeks: float
     total_preparation_weeks: float
     protection_requirement: str
+    security_requirement: str
     score_breakdown: dict[str, float]
     explanations: dict[str, str]
     cost_breakdown: dict[str, float] = field(default_factory=dict)
