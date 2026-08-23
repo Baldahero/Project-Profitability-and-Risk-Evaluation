@@ -23,6 +23,26 @@ PREPARATION_WEEKS_BY_COMPLEXITY = {
     "High": 6,
 }
 
+# Security assumptions used by the transparent rule-based model.  PAS 24 and
+# the resistance class are separate because a project may require both PAS 24
+# and RC2/RC3.  The values are modelling assumptions, not certification facts.
+RESISTANCE_CLASS_TECHNICAL_PENALTIES = {
+    "None": 0,
+    "RC2": 10,
+    "RC3": 20,
+}
+
+RESISTANCE_CLASS_PREPARATION_WEEKS = {
+    "None": 0.0,
+    "RC2": 1.0,
+    "RC3": 2.0,
+}
+
+PAS24_TECHNICAL_PENALTY = 5
+PAS24_PREPARATION_WEEKS = 0.5
+ACCESS_CONTROL_TECHNICAL_PENALTY = 8
+ACCESS_CONTROL_PREPARATION_WEEKS = 1.0
+
 DESIGN_REPETITION_SCORE = {
     "Repeated": 90,
     "Partially similar": 70,
@@ -89,6 +109,7 @@ def evaluate_project(
 
     technical_score = _technical_score(project, alerts, checklist, explanations)
     protection_requirement = _protection_requirement(project)
+    security_requirement = _security_requirement(project)
     environment_score = _environment_score(project, alerts, checklist, explanations)
 
     similar_projects = _find_similar_projects(project, historical_projects)
@@ -120,6 +141,7 @@ def evaluate_project(
         preparation_weeks=round(preparation_weeks, 1),
         total_preparation_weeks=round(total_preparation_weeks, 1),
         protection_requirement=protection_requirement,
+        security_requirement=security_requirement,
         score_breakdown={name: round(score, 1) for name, score in score_breakdown.items()},
         explanations=explanations,
         alerts=alerts,
@@ -200,7 +222,8 @@ def _estimate_preparation_hours(project: ProjectInput) -> float:
 
 def _estimate_preparation_weeks(project: ProjectInput, preparation_hours: float) -> float:
     if preparation_hours:
-        return preparation_hours / max(1.0, project.production_capacity_hours_per_week)
+        base_weeks = preparation_hours / max(1.0, project.production_capacity_hours_per_week)
+        return base_weeks + _security_preparation_weeks(project)
 
     preparation_weeks = PREPARATION_WEEKS_BY_COMPLEXITY.get(project.technical_complexity, 4)
 
@@ -211,6 +234,7 @@ def _estimate_preparation_weeks(project: ProjectInput, preparation_hours: float)
     if project.missing_installation_details:
         preparation_weeks += 1
     preparation_weeks += _volume_preparation_weeks(project)
+    preparation_weeks += _security_preparation_weeks(project)
 
     return float(preparation_weeks)
 
@@ -290,6 +314,41 @@ def _technical_score(
         alerts.append("Installation details are missing; clarify scope and responsibility split.")
         checklist.append("Clarify installation scope, access conditions, and responsibility split.")
 
+    if project.pas24_required:
+        score -= PAS24_TECHNICAL_PENALTY
+        reasons.append(
+            "PAS 24 adds evidence, hardware, glazing and tested-configuration checks."
+        )
+        checklist.append(
+            "Confirm that the complete door/window configuration is covered by valid PAS 24 evidence."
+        )
+
+    resistance_class = _normalise_resistance_class(project.resistance_class)
+    resistance_penalty = RESISTANCE_CLASS_TECHNICAL_PENALTIES[resistance_class]
+    if resistance_penalty:
+        score -= resistance_penalty
+        reasons.append(
+            f"{resistance_class} resistance increases system, hardware, glazing and installation requirements."
+        )
+        alerts.append(
+            f"{resistance_class} requirement needs a tested system and specialist technical review."
+        )
+        checklist.append(
+            f"Verify {resistance_class} classification evidence for the full installed configuration."
+        )
+
+    if project.access_control_required:
+        score -= ACCESS_CONTROL_TECHNICAL_PENALTY
+        reasons.append(
+            "Access control adds electrical interfaces, locking coordination and commissioning risk."
+        )
+        alerts.append(
+            "Access-control interfaces require responsibility, power, fire-strategy and commissioning confirmation."
+        )
+        checklist.append(
+            "Confirm access-control hardware, power, cabling, fire-alarm interface and commissioning responsibility."
+        )
+
     volume_penalty = _volume_technical_penalty(project)
     if volume_penalty:
         score -= volume_penalty
@@ -341,6 +400,21 @@ def _protection_requirement(project: ProjectInput) -> str:
     if project.wind_exposure == "High":
         return "Standard coating with wind-load verification"
     return "Standard coating"
+
+
+def _security_requirement(project: ProjectInput) -> str:
+    requirements = []
+    if project.pas24_required:
+        requirements.append("PAS 24")
+
+    resistance_class = _normalise_resistance_class(project.resistance_class)
+    if resistance_class != "None":
+        requirements.append(resistance_class)
+
+    if project.access_control_required:
+        requirements.append("Access control")
+
+    return " + ".join(requirements) if requirements else "None specified"
 
 
 def _similarity_score(
@@ -438,6 +512,18 @@ def _extend_checklist(
         checklist.append("Schedule additional engineering review for new design solution.")
 
 
+def _security_preparation_weeks(project: ProjectInput) -> float:
+    weeks = 0.0
+    if project.pas24_required:
+        weeks += PAS24_PREPARATION_WEEKS
+    weeks += RESISTANCE_CLASS_PREPARATION_WEEKS[
+        _normalise_resistance_class(project.resistance_class)
+    ]
+    if project.access_control_required:
+        weeks += ACCESS_CONTROL_PREPARATION_WEEKS
+    return weeks
+
+
 def _volume_preparation_weeks(project: ProjectInput) -> int:
     if project.element_quantity >= 500 or project.package_area_m2 >= 1500:
         return 6
@@ -475,6 +561,15 @@ def _complexity_distance(left: str, right: str) -> int:
 
 def _normal(value: str) -> str:
     return value.strip().casefold()
+
+
+def _normalise_resistance_class(value: str) -> str:
+    normalised = (value or "None").strip().upper()
+    if normalised in {"", "NONE", "NOT REQUIRED"}:
+        return "None"
+    if normalised not in {"RC2", "RC3"}:
+        raise ValueError("resistance_class must be one of: None, RC2, RC3")
+    return normalised
 
 
 def _clamp(value: float, lower: float = 0, upper: float = 100) -> float:
