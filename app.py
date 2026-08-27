@@ -521,55 +521,35 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
     package_rows = []
     remove_package_id = None
 
-    # --- Inline table header ---
-    hdr = st.columns([3, 1.2, 1.2, 1, 0.8])
-    hdr[0].markdown("**Element type**")
-    hdr[1].markdown("**Width (m)**")
-    hdr[2].markdown("**Height (m)**")
-    hdr[3].markdown("**Qty**")
-    hdr[4].markdown("**Del**")
-
-    st.divider()
+    # Table header
+    h = st.columns([5, 2, 2, 2, 1])
+    h[0].markdown("**Type**")
+    h[1].markdown("**W&nbsp;(m)**")
+    h[2].markdown("**H&nbsp;(m)**")
+    h[3].markdown("**Qty**")
+    h[4].markdown("")
 
     for position, package_id in enumerate(package_ids, start=1):
-        cols = st.columns([3, 1.2, 1.2, 1, 0.8])
-
-        element_type = cols[0].selectbox(
-            f"element_type_{position}",
-            get_pricing_options(pricing_rows, "element_type"),
-            key=f"element_type_{package_id}",
-            label_visibility="collapsed",
+        c = st.columns([5, 2, 2, 2, 1])
+        element_type = c[0].selectbox(
+            "type", get_pricing_options(pricing_rows, "element_type"),
+            key=f"element_type_{package_id}", label_visibility="collapsed",
         )
-        width_m = cols[1].number_input(
-            f"width_{position}",
-            min_value=0.1,
-            value=1.0,
-            step=0.1,
-            key=f"width_{package_id}",
-            label_visibility="collapsed",
+        width_m = c[1].number_input(
+            "w", min_value=0.1, value=1.0, step=0.1,
+            key=f"width_{package_id}", label_visibility="collapsed",
         )
-        height_m = cols[2].number_input(
-            f"height_{position}",
-            min_value=0.1,
-            value=1.0,
-            step=0.1,
-            key=f"height_{package_id}",
-            label_visibility="collapsed",
+        height_m = c[2].number_input(
+            "h", min_value=0.1, value=1.0, step=0.1,
+            key=f"height_{package_id}", label_visibility="collapsed",
         )
-        quantity = int(cols[3].number_input(
-            f"qty_{position}",
-            min_value=1,
-            value=1,
-            step=1,
-            key=f"quantity_{package_id}",
-            label_visibility="collapsed",
+        quantity = int(c[3].number_input(
+            "q", min_value=1, value=1, step=1,
+            key=f"quantity_{package_id}", label_visibility="collapsed",
         ))
-        if cols[4].button(
-            "✕",
-            key=f"remove_package_{package_id}",
-            disabled=len(package_ids) == 1,
-            use_container_width=True,
-        ):
+        if c[4].button("✕", key=f"remove_package_{package_id}",
+                       disabled=len(package_ids) == 1,
+                       use_container_width=True):
             remove_package_id = package_id
 
         package_rows.append({
@@ -579,13 +559,11 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
             "quantity": quantity,
         })
 
-    st.divider()
-
     if remove_package_id is not None:
         _remove_package_row(remove_package_id)
         st.rerun()
 
-    if st.button("＋ Add construction", use_container_width=True):
+    if st.button("＋  Add construction", use_container_width=True):
         _add_package_row()
         st.rerun()
 
