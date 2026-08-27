@@ -1,0 +1,9 @@
+﻿project_id,project_type,material_type,region,wind_exposure,technical_complexity,design_repetition,installation_model,actual_margin_percent,outcome,notes
+UK-FAC-001,Facade,Aluminium,Urban,Medium,Medium,Partially similar,Company installs,16.5,Completed profitably,"Standard curtain wall, FWS 50 profile system"
+UK-FAC-002,Facade,Aluminium,Coastal,High,High,New,Company installs,6.8,Margin pressure,"Non-standard profiles, coastal QC2 coating required"
+UK-WIN-003,Windows,Aluminium,Inland,Low,Low,Repeated,Client installs,21.3,Completed profitably,"AWS 75.SI+ standard windows, straightforward installation"
+UK-DOOR-004,Doors,Aluminium,Industrial,Medium,Medium,Partially similar,Mixed installation,12.4,Acceptable with issues,"AD UP 75 door system, minor schedule delay"
+UK-FAC-005,Facade,Aluminium,Coastal,High,High,New,Company installs,9.6,High risk realized,"FWS 50 curtain wall, coastal high wind, complex geometry"
+UK-WIN-006,Windows,Aluminium,Urban,Low,Low,Repeated,Company installs,24.8,Completed profitably,"Standard AWS 75.SI+ windows, urban residential block"
+UK-FAC-007,Facade,Aluminium,Mountain,High,High,New,Mixed installation,8.1,High risk realized,"Non-standard profiles, mountain high wind, complex drawings"
+UK-DOOR-008,Doors,Aluminium,Inland,Low,Low,Repeated,Client installs,19.4,Completed profitably,"Standard door system, straightforward specification"
