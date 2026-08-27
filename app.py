@@ -521,58 +521,62 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
     package_rows = []
     remove_package_id = None
 
-    # Single input form - no list here
-    element_types = get_pricing_options(pricing_rows, "element_type")
+    for position, package_id in enumerate(package_ids, start=1):
+        if position > 1:
+            st.divider()
 
-    # We still need to render all inputs for package_rows
-    # but hide them visually using collapsed labels
-    for package_id in package_ids:
-        package_rows.append({
-            "element_type": st.selectbox(
-                "Element type" if package_id == package_ids[0] else f"_type_{package_id}",
-                element_types,
-                key=f"element_type_{package_id}",
-                label_visibility="visible" if package_id == package_ids[0] else "collapsed",
-            ),
-            "width_m": st.number_input(
-                "Width, m" if package_id == package_ids[0] else f"_w_{package_id}",
-                min_value=0.1, value=1.0, step=0.1,
-                key=f"width_{package_id}",
-                label_visibility="visible" if package_id == package_ids[0] else "collapsed",
-            ),
-            "height_m": st.number_input(
-                "Height, m" if package_id == package_ids[0] else f"_h_{package_id}",
-                min_value=0.1, value=1.0, step=0.1,
-                key=f"height_{package_id}",
-                label_visibility="visible" if package_id == package_ids[0] else "collapsed",
-            ),
-            "quantity": int(st.number_input(
-                "Quantity" if package_id == package_ids[0] else f"_q_{package_id}",
-                min_value=1, value=1, step=1,
-                key=f"quantity_{package_id}",
-                label_visibility="visible" if package_id == package_ids[0] else "collapsed",
-            )),
-        })
+        heading_col, action_col = st.columns([0.60, 0.40])
+        with heading_col:
+            st.caption(f"Construction {position}")
+        with action_col:
+            if st.button(
+                "Remove",
+                key=f"remove_package_{package_id}",
+                use_container_width=True,
+                disabled=len(package_ids) == 1,
+            ):
+                remove_package_id = package_id
+
+        package_rows.append(
+            {
+                "element_type": st.selectbox(
+                    "Element type",
+                    get_pricing_options(pricing_rows, "element_type"),
+                    key=f"element_type_{package_id}",
+                ),
+                "width_m": st.number_input(
+                    "Width, m",
+                    min_value=0.1,
+                    value=1.0,
+                    step=0.1,
+                    key=f"width_{package_id}",
+                ),
+                "height_m": st.number_input(
+                    "Height, m",
+                    min_value=0.1,
+                    value=1.0,
+                    step=0.1,
+                    key=f"height_{package_id}",
+                ),
+                "quantity": int(
+                    st.number_input(
+                        "Quantity",
+                        min_value=1,
+                        value=1,
+                        step=1,
+                        key=f"quantity_{package_id}",
+                    )
+                ),
+            }
+        )
 
     if remove_package_id is not None:
         _remove_package_row(remove_package_id)
         st.rerun()
 
-    if st.button("＋  Add construction", use_container_width=True):
+    if st.button("Add construction", use_container_width=True):
         _add_package_row()
         st.rerun()
-
-    st.caption(
-        f"Package summary: {len(package_rows)} construction(s), "
-        f"{sum(r['quantity'] for r in package_rows)} units, "
-        f"{sum(r['width_m'] * r['height_m'] * r['quantity'] for r in package_rows):.1f} m2"
-    )
-
-    # Compact summary of all constructions
-    if len(package_rows) > 0:
-        st.caption(f"Package summary: {len(package_rows)} construction(s), "
-                   f"{sum(r['quantity'] for r in package_rows)} units, "
-                   f"{sum(r['width_m'] * r['height_m'] * r['quantity'] for r in package_rows):.1f} m2")
 
     glass_supply_model = st.selectbox(
         "Glass supply model",
@@ -993,39 +997,6 @@ def render_pricing_estimate(estimate) -> None:
         )
 
     if estimate.package_count > 1:
-        # Editable constructions list
-        st.markdown("**Constructions**")
-        remove_pkg_id = None
-        for pos, pkg_id in enumerate(package_ids, start=1):
-            rc = st.columns([4, 1.2, 1.2, 1, 0.6])
-            rc[0].selectbox(
-                f"T{pos}", element_types,
-                key=f"element_type_{pkg_id}",
-                label_visibility="collapsed",
-            )
-            rc[1].number_input(
-                f"W{pos}", min_value=0.1, step=0.1,
-                key=f"width_{pkg_id}",
-                label_visibility="collapsed",
-            )
-            rc[2].number_input(
-                f"H{pos}", min_value=0.1, step=0.1,
-                key=f"height_{pkg_id}",
-                label_visibility="collapsed",
-            )
-            rc[3].number_input(
-                f"Q{pos}", min_value=1, step=1,
-                key=f"quantity_{pkg_id}",
-                label_visibility="collapsed",
-            )
-            if rc[4].button("✕", key=f"rm_right_{pkg_id}",
-                            disabled=len(package_ids) == 1,
-                            use_container_width=True):
-                remove_pkg_id = pkg_id
-        if remove_pkg_id is not None:
-            _remove_package_row(remove_pkg_id)
-            st.rerun()
-        st.divider()
         st.dataframe(
             [
                 {
