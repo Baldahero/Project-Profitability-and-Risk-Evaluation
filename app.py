@@ -521,36 +521,37 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
     package_rows = []
     remove_package_id = None
 
-    # Table header
-    h = st.columns([5, 2, 2, 2, 1])
-    h[0].markdown("**Type**")
-    h[1].markdown("**W&nbsp;(m)**")
-    h[2].markdown("**H&nbsp;(m)**")
-    h[3].markdown("**Qty**")
-    h[4].markdown("")
-
     for position, package_id in enumerate(package_ids, start=1):
-        c = st.columns([5, 2, 2, 2, 1])
-        element_type = c[0].selectbox(
-            "type", get_pricing_options(pricing_rows, "element_type"),
-            key=f"element_type_{package_id}", label_visibility="collapsed",
+        # Element type - full width with remove button
+        type_col, remove_col = st.columns([5, 1])
+        element_type = type_col.selectbox(
+            f"#{position} Type",
+            get_pricing_options(pricing_rows, "element_type"),
+            key=f"element_type_{package_id}",
         )
-        width_m = c[1].number_input(
-            "w", min_value=0.1, value=1.0, step=0.1,
-            key=f"width_{package_id}", label_visibility="collapsed",
-        )
-        height_m = c[2].number_input(
-            "h", min_value=0.1, value=1.0, step=0.1,
-            key=f"height_{package_id}", label_visibility="collapsed",
-        )
-        quantity = int(c[3].number_input(
-            "q", min_value=1, value=1, step=1,
-            key=f"quantity_{package_id}", label_visibility="collapsed",
-        ))
-        if c[4].button("✕", key=f"remove_package_{package_id}",
-                       disabled=len(package_ids) == 1,
-                       use_container_width=True):
+        remove_col.markdown("<br>", unsafe_allow_html=True)
+        if remove_col.button(
+            "✕",
+            key=f"remove_package_{package_id}",
+            disabled=len(package_ids) == 1,
+            use_container_width=True,
+        ):
             remove_package_id = package_id
+
+        # Dimensions on one row
+        w_col, h_col, q_col = st.columns(3)
+        width_m = w_col.number_input(
+            "W (m)", min_value=0.1, value=1.0, step=0.1,
+            key=f"width_{package_id}",
+        )
+        height_m = h_col.number_input(
+            "H (m)", min_value=0.1, value=1.0, step=0.1,
+            key=f"height_{package_id}",
+        )
+        quantity = int(q_col.number_input(
+            "Qty", min_value=1, value=1, step=1,
+            key=f"quantity_{package_id}",
+        ))
 
         package_rows.append({
             "element_type": element_type,
@@ -558,6 +559,9 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
             "height_m": height_m,
             "quantity": quantity,
         })
+
+        if position < len(package_ids):
+            st.divider()
 
     if remove_package_id is not None:
         _remove_package_row(remove_package_id)
