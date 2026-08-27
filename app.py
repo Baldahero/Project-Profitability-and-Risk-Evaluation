@@ -517,66 +517,48 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
     st.divider()
 
     st.subheader("Element Package")
-    package_ids = _get_package_ids()
-    package_rows = []
-    remove_package_id = None
 
-    for position, package_id in enumerate(package_ids, start=1):
-        if position > 1:
-            st.divider()
+    # Initialize constructions list in session state
+    if "constructions_list" not in st.session_state:
+        st.session_state.constructions_list = []
 
-        heading_col, action_col = st.columns([0.60, 0.40])
-        with heading_col:
-            st.caption(f"Construction {position}")
-        with action_col:
-            if st.button(
-                "Remove",
-                key=f"remove_package_{package_id}",
-                use_container_width=True,
-                disabled=len(package_ids) == 1,
-            ):
-                remove_package_id = package_id
+    element_types = get_pricing_options(pricing_rows, "element_type")
 
-        package_rows.append(
-            {
-                "element_type": st.selectbox(
-                    "Element type",
-                    get_pricing_options(pricing_rows, "element_type"),
-                    key=f"element_type_{package_id}",
-                ),
-                "width_m": st.number_input(
-                    "Width, m",
-                    min_value=0.1,
-                    value=1.0,
-                    step=0.1,
-                    key=f"width_{package_id}",
-                ),
-                "height_m": st.number_input(
-                    "Height, m",
-                    min_value=0.1,
-                    value=1.0,
-                    step=0.1,
-                    key=f"height_{package_id}",
-                ),
-                "quantity": int(
-                    st.number_input(
-                        "Quantity",
-                        min_value=1,
-                        value=1,
-                        step=1,
-                        key=f"quantity_{package_id}",
-                    )
-                ),
-            }
-        )
+    # Single input form - always one, never duplicates
+    new_type = st.selectbox("Element type", element_types, key="input_element_type")
+    col_w, col_h, col_q = st.columns(3)
+    new_w = col_w.number_input("W (m)", min_value=0.1, value=1.0, step=0.1, key="input_width")
+    new_h = col_h.number_input("H (m)", min_value=0.1, value=1.0, step=0.1, key="input_height")
+    new_q = int(col_q.number_input("Qty", min_value=1, value=1, step=1, key="input_qty"))
 
-    if remove_package_id is not None:
-        _remove_package_row(remove_package_id)
+    if st.button("＋  Add construction", use_container_width=True):
+        st.session_state.constructions_list.append({
+            "element_type": new_type,
+            "width_m": new_w,
+            "height_m": new_h,
+            "quantity": new_q,
+        })
         st.rerun()
 
-    if st.button("Add construction", use_container_width=True):
-        _add_package_row()
-        st.rerun()
+    # Build package_rows from session state
+    package_rows = list(st.session_state.constructions_list)
+
+    # Fallback: if empty add one default
+    if not package_rows:
+        package_rows = [{
+            "element_type": new_type,
+            "width_m": new_w,
+            "height_m": new_h,
+            "quantity": new_q,
+        }]
+
+    # Also keep package_ids for compatibility
+    package_ids = list(range(len(package_rows)))
+
+    st.caption(
+        f"Package: {len(package_rows)} item(s), "
+        f"{sum(r['quantity'] for r in package_rows)} units"
+    )
 
     glass_supply_model = st.selectbox(
         "Glass supply model",
@@ -997,6 +979,37 @@ def render_pricing_estimate(estimate) -> None:
         )
 
     if estimate.package_count > 1:
+        # Editable constructions table
+        st.markdown("**Constructions**")
+        to_remove = None
+        constructions = st.session_state.get("constructions_list", [])
+        for i, row in enumerate(constructions):
+            c = st.columns([4, 1.2, 1.2, 1.2, 0.6])
+            constructions[i]["element_type"] = c[0].selectbox(
+                f"t{i}", get_pricing_options(pricing_rows, "element_type"),
+                index=get_pricing_options(pricing_rows, "element_type").index(row["element_type"])
+                      if row["element_type"] in get_pricing_options(pricing_rows, "element_type") else 0,
+                key=f"ct_{i}", label_visibility="collapsed",
+            )
+            constructions[i]["width_m"] = c[1].number_input(
+                f"w{i}", min_value=0.1, value=float(row["width_m"]), step=0.1,
+                key=f"cw_{i}", label_visibility="collapsed",
+            )
+            constructions[i]["height_m"] = c[2].number_input(
+                f"h{i}", min_value=0.1, value=float(row["height_m"]), step=0.1,
+                key=f"ch_{i}", label_visibility="collapsed",
+            )
+            constructions[i]["quantity"] = int(c[3].number_input(
+                f"q{i}", min_value=1, value=int(row["quantity"]), step=1,
+                key=f"cq_{i}", label_visibility="collapsed",
+            ))
+            if c[4].button("✕", key=f"cr_{i}", use_container_width=True):
+                to_remove = i
+        if to_remove is not None:
+            st.session_state.constructions_list.pop(to_remove)
+            st.rerun()
+        st.session_state.constructions_list = constructions
+        st.divider()
         st.dataframe(
             [
                 {
