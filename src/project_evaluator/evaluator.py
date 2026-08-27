@@ -153,23 +153,23 @@ def evaluate_project(
 def _calculate_margin(contract_value: float, estimated_cost: float) -> float:
     if contract_value <= 0:
         return 0.0
-    packaging_cost = contract_value * PACKAGING_RATE
-    transport_cost = contract_value * TRANSPORT_RATE
-    return (contract_value - estimated_cost - packaging_cost - transport_cost) / contract_value * 100
+    # Packaging and transport are added ON TOP for client - not deducted from margin
+    return (contract_value - estimated_cost) / contract_value * 100
 
 
 def _calculate_cost_breakdown(contract_value: float, estimated_cost: float) -> dict:
+    # Packaging and transport are ADDED to contract value for the client invoice
     packaging_cost = round(contract_value * PACKAGING_RATE, 2)
     transport_cost = round(contract_value * TRANSPORT_RATE, 2)
-    total_deductions = estimated_cost + packaging_cost + transport_cost
-    net_margin = contract_value - total_deductions
+    total_client_price = contract_value + packaging_cost + transport_cost
+    gross_margin = contract_value - estimated_cost
     return {
         "contract_value": round(contract_value, 2),
         "estimated_cost": round(estimated_cost, 2),
         "packaging_cost": packaging_cost,
         "transport_cost": transport_cost,
-        "total_deductions": round(total_deductions, 2),
-        "net_margin_value": round(net_margin, 2),
+        "total_client_price": round(total_client_price, 2),
+        "gross_margin_value": round(gross_margin, 2),
     }
 
 
@@ -178,24 +178,24 @@ def _financial_score(
     alerts: list[str],
     explanations: dict[str, str],
 ) -> float:
-    # Note: margin_percent already includes packaging (2%) and transport (12.5%) deductions
+    # Margin = (contract_value - estimated_cost) / contract_value * 100
     if margin_percent >= 20:
         score = 100
-        message = "Margin is strong after packaging and transport deductions (3% + 12.5% of contract value)."
+        message = "Margin is strong. Packaging and transport will be invoiced separately to the client."
     elif margin_percent >= 15:
         score = 85
-        message = "Margin is acceptable after packaging and transport deductions; monitor against technical risks."
+        message = "Margin is acceptable; monitor against technical risks and production issues."
     elif margin_percent >= 10:
         score = 65
-        message = "Margin is moderate after packaging (2%) and transport (12.5%) deductions; limited room for uncertainty."
+        message = "Margin is moderate; limited room for production uncertainties and rework."
     elif margin_percent >= 5:
         score = 40
-        message = "Margin is low after packaging and transport deductions; review before tender submission."
-        alerts.append("Project margin is below 10% after packaging (2%) and transport (12.5%) deductions; perform pricing review.")
+        message = "Margin is low; review pricing before tender submission."
+        alerts.append("Project margin is below 10%; perform pricing review before tender submission.")
     else:
         score = 20
-        message = "Margin is critical after packaging and transport deductions; may not absorb execution risks."
-        alerts.append("Project margin is below 5% after packaging (2%) and transport (12.5%) deductions; commercial approval required.")
+        message = "Margin is critical; unlikely to absorb production risks and rework costs."
+        alerts.append("Project margin is below 5%; commercial approval required before tender submission.")
 
     explanations["financial"] = message
     return score
