@@ -666,12 +666,16 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
         "window" in row["element_type"].lower() or "door" in row["element_type"].lower()
         for row in package_rows
     )
-    security_class = st.selectbox(
-        "Security class",
-        options=["None", "PAS 24", "RC2 (includes PAS 24)", "RC3 (includes RC2 + PAS 24)"],
+    pas24_required = st.checkbox(
+        "PAS 24 compliance required",
+        value=package_contains_openings,
+        help="UK security standard for doors and windows. Select when specified in the project requirements.",
+    )
+    resistance_class = st.selectbox(
+        "Burglary resistance class",
+        ["None", "RC2", "RC3"],
         help=(
-            "Select the highest applicable security class. "
-            "RC2 automatically includes PAS 24. RC3 includes both RC2 and PAS 24. "
+            "RC2 and RC3 are independent resistance classes. "
             "Select only when the project specification explicitly requires it."
         ),
     )
@@ -682,16 +686,6 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
     st.caption(
         "Security selections are project inputs. They must be supported by the project "
         "specification; the estimator does not verify certification."
-    )
-
-    # Derive individual flags from selection
-    pas24_required = security_class in [
-        "PAS 24", "RC2 (includes PAS 24)", "RC3 (includes RC2 + PAS 24)"
-    ]
-    resistance_class = (
-        "RC3" if security_class == "RC3 (includes RC2 + PAS 24)"
-        else "RC2" if security_class == "RC2 (includes PAS 24)"
-        else "None"
     )
 
     st.divider()
