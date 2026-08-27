@@ -521,8 +521,14 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
     package_rows = []
     remove_package_id = None
 
+    # Add button at TOP so page doesn't scroll down
+    if st.button("＋  Add construction", use_container_width=True):
+        _add_package_row()
+        st.rerun()
+
+    st.divider()
+
     for position, package_id in enumerate(package_ids, start=1):
-        # Element type - full width with remove button
         type_col, remove_col = st.columns([5, 1])
         element_type = type_col.selectbox(
             f"#{position} Type",
@@ -538,7 +544,6 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
         ):
             remove_package_id = package_id
 
-        # Dimensions on one row
         w_col, h_col, q_col = st.columns(3)
         width_m = w_col.number_input(
             "W (m)", min_value=0.1, value=1.0, step=0.1,
@@ -567,9 +572,6 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
         _remove_package_row(remove_package_id)
         st.rerun()
 
-    if st.button("＋  Add construction", use_container_width=True):
-        _add_package_row()
-        st.rerun()
 
     glass_supply_model = st.selectbox(
         "Glass supply model",
