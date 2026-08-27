@@ -60,7 +60,7 @@ SCORE_WEIGHTS = {
 DAYS_PER_WEEK = 7
 
 # Additional cost deductions from contract value
-PACKAGING_RATE = 0.03    # 3% of contract value
+PACKAGING_RATE = 0.02    # 2% of contract value
 TRANSPORT_RATE = 0.125   # 12.5% of contract value
 
 
@@ -178,7 +178,7 @@ def _financial_score(
     alerts: list[str],
     explanations: dict[str, str],
 ) -> float:
-    # Note: margin_percent already includes packaging (3%) and transport (12.5%) deductions
+    # Note: margin_percent already includes packaging (2%) and transport (12.5%) deductions
     if margin_percent >= 20:
         score = 100
         message = "Margin is strong after packaging and transport deductions (3% + 12.5% of contract value)."
@@ -187,15 +187,15 @@ def _financial_score(
         message = "Margin is acceptable after packaging and transport deductions; monitor against technical risks."
     elif margin_percent >= 10:
         score = 65
-        message = "Margin is moderate after packaging (3%) and transport (12.5%) deductions; limited room for uncertainty."
+        message = "Margin is moderate after packaging (2%) and transport (12.5%) deductions; limited room for uncertainty."
     elif margin_percent >= 5:
         score = 40
         message = "Margin is low after packaging and transport deductions; review before tender submission."
-        alerts.append("Project margin is below 10% after packaging (3%) and transport (12.5%) deductions; perform pricing review.")
+        alerts.append("Project margin is below 10% after packaging (2%) and transport (12.5%) deductions; perform pricing review.")
     else:
         score = 20
         message = "Margin is critical after packaging and transport deductions; may not absorb execution risks."
-        alerts.append("Project margin is below 5% after packaging (3%) and transport (12.5%) deductions; commercial approval required.")
+        alerts.append("Project margin is below 5% after packaging (2%) and transport (12.5%) deductions; commercial approval required.")
 
     explanations["financial"] = message
     return score
@@ -444,7 +444,7 @@ def _similarity_score(
 def _find_similar_projects(
     project: ProjectInput,
     historical_projects: list[HistoricalProject],
-    limit: int = 3,
+    limit: int = 8,
 ) -> list[dict]:
     scored = []
     for historical in historical_projects:
