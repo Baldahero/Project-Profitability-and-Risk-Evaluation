@@ -521,60 +521,71 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
     package_rows = []
     remove_package_id = None
 
+    # --- Inline table header ---
+    hdr = st.columns([3, 1.2, 1.2, 1, 0.8])
+    hdr[0].markdown("**Element type**")
+    hdr[1].markdown("**Width (m)**")
+    hdr[2].markdown("**Height (m)**")
+    hdr[3].markdown("**Qty**")
+    hdr[4].markdown("**Del**")
+
+    st.divider()
+
     for position, package_id in enumerate(package_ids, start=1):
-        if position > 1:
-            st.divider()
+        cols = st.columns([3, 1.2, 1.2, 1, 0.8])
 
-        heading_col, action_col = st.columns([0.60, 0.40])
-        with heading_col:
-            st.caption(f"Construction {position}")
-        with action_col:
-            if st.button(
-                "Remove",
-                key=f"remove_package_{package_id}",
-                use_container_width=True,
-                disabled=len(package_ids) == 1,
-            ):
-                remove_package_id = package_id
-
-        package_rows.append(
-            {
-                "element_type": st.selectbox(
-                    "Element type",
-                    get_pricing_options(pricing_rows, "element_type"),
-                    key=f"element_type_{package_id}",
-                ),
-                "width_m": st.number_input(
-                    "Width, m",
-                    min_value=0.1,
-                    value=1.0,
-                    step=0.1,
-                    key=f"width_{package_id}",
-                ),
-                "height_m": st.number_input(
-                    "Height, m",
-                    min_value=0.1,
-                    value=1.0,
-                    step=0.1,
-                    key=f"height_{package_id}",
-                ),
-                "quantity": int(
-                    st.number_input(
-                        "Quantity",
-                        min_value=1,
-                        value=1,
-                        step=1,
-                        key=f"quantity_{package_id}",
-                    )
-                ),
-            }
+        element_type = cols[0].selectbox(
+            f"element_type_{position}",
+            get_pricing_options(pricing_rows, "element_type"),
+            key=f"element_type_{package_id}",
+            label_visibility="collapsed",
         )
+        width_m = cols[1].number_input(
+            f"width_{position}",
+            min_value=0.1,
+            value=1.0,
+            step=0.1,
+            key=f"width_{package_id}",
+            label_visibility="collapsed",
+        )
+        height_m = cols[2].number_input(
+            f"height_{position}",
+            min_value=0.1,
+            value=1.0,
+            step=0.1,
+            key=f"height_{package_id}",
+            label_visibility="collapsed",
+        )
+        quantity = int(cols[3].number_input(
+            f"qty_{position}",
+            min_value=1,
+            value=1,
+            step=1,
+            key=f"quantity_{package_id}",
+            label_visibility="collapsed",
+        ))
+        if cols[4].button(
+            "✕",
+            key=f"remove_package_{package_id}",
+            disabled=len(package_ids) == 1,
+            use_container_width=True,
+        ):
+            remove_package_id = package_id
+
+        package_rows.append({
+            "element_type": element_type,
+            "width_m": width_m,
+            "height_m": height_m,
+            "quantity": quantity,
+        })
+
+    st.divider()
 
     if remove_package_id is not None:
         _remove_package_row(remove_package_id)
         st.rerun()
 
-    if st.button("Add construction", use_container_width=True):
+    if st.button("＋ Add construction", use_container_width=True):
         _add_package_row()
         st.rerun()
 
