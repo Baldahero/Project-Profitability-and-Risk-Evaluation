@@ -521,57 +521,68 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
     package_rows = []
     remove_package_id = None
 
-    # Add button at TOP so page doesn't scroll down
-    if st.button("＋  Add construction", use_container_width=True):
-        _add_package_row()
-        st.rerun()
-
-    st.divider()
-
     for position, package_id in enumerate(package_ids, start=1):
-        type_col, remove_col = st.columns([5, 1])
-        element_type = type_col.selectbox(
-            f"#{position} Type",
-            get_pricing_options(pricing_rows, "element_type"),
-            key=f"element_type_{package_id}",
-        )
-        remove_col.markdown("<br>", unsafe_allow_html=True)
-        if remove_col.button(
-            "✕",
-            key=f"remove_package_{package_id}",
-            disabled=len(package_ids) == 1,
-            use_container_width=True,
-        ):
-            remove_package_id = package_id
-
-        w_col, h_col, q_col = st.columns(3)
-        width_m = w_col.number_input(
-            "W (m)", min_value=0.1, value=1.0, step=0.1,
-            key=f"width_{package_id}",
-        )
-        height_m = h_col.number_input(
-            "H (m)", min_value=0.1, value=1.0, step=0.1,
-            key=f"height_{package_id}",
-        )
-        quantity = int(q_col.number_input(
-            "Qty", min_value=1, value=1, step=1,
-            key=f"quantity_{package_id}",
-        ))
-
-        package_rows.append({
-            "element_type": element_type,
-            "width_m": width_m,
-            "height_m": height_m,
-            "quantity": quantity,
-        })
-
-        if position < len(package_ids):
+        if position > 1:
             st.divider()
+
+        heading_col, action_col = st.columns([0.60, 0.40])
+        with heading_col:
+            st.caption(f"Construction {position}")
+        with action_col:
+            if st.button(
+                "Remove",
+                key=f"remove_package_{package_id}",
+                use_container_width=True,
+                disabled=len(package_ids) == 1,
+            ):
+                remove_package_id = package_id
+
+        package_rows.append(
+            {
+                "element_type": st.selectbox(
+                    "Element type",
+                    get_pricing_options(pricing_rows, "element_type"),
+                    key=f"element_type_{package_id}",
+                ),
+                "width_m": st.number_input(
+                    "Width, m",
+                    min_value=0.1,
+                    value=1.0,
+                    step=0.1,
+                    key=f"width_{package_id}",
+                ),
+                "height_m": st.number_input(
+                    "Height, m",
+                    min_value=0.1,
+                    value=1.0,
+                    step=0.1,
+                    key=f"height_{package_id}",
+                ),
+                "quantity": int(
+                    st.number_input(
+                        "Quantity",
+                        min_value=1,
+                        value=1,
+                        step=1,
+                        key=f"quantity_{package_id}",
+                    )
+                ),
+            }
+        )
 
     if remove_package_id is not None:
         _remove_package_row(remove_package_id)
         st.rerun()
 
+    if st.button("Add construction", use_container_width=True):
+        _add_package_row()
+        st.rerun()
+
+    # Compact summary of all constructions
+    if len(package_rows) > 0:
+        st.caption(f"Package summary: {len(package_rows)} construction(s), "
+                   f"{sum(r['quantity'] for r in package_rows)} units, "
+                   f"{sum(r['width_m'] * r['height_m'] * r['quantity'] for r in package_rows):.1f} m2")
 
     glass_supply_model = st.selectbox(
         "Glass supply model",
