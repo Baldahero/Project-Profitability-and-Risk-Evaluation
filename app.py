@@ -987,13 +987,13 @@ def render_pricing_estimate(estimate, pricing_rows=None) -> None:
     with second:
         _metric_card("Total final price", _gbp(estimate.total_final_price_gbp))
     with third:
-        packaging_cost = estimate.total_final_price_gbp * 0.03
+        packaging_cost = estimate.total_final_price_gbp * 0.02
         transport_cost = estimate.total_final_price_gbp * 0.125
-        net_margin = estimate.total_margin_gbp - packaging_cost - transport_cost
+        total_client_invoice = estimate.total_final_price_gbp + packaging_cost + transport_cost
         _metric_card(
-            "Margin (after pkg & transport)",
-            _gbp(net_margin),
-            f"{estimate.margin_rate * 100:.0f}% rule − pkg 3% − transport 12.5%",
+            "Gross margin",
+            _gbp(estimate.total_margin_gbp),
+            f"{estimate.margin_rate * 100:.0f}% pricing rule",
         )
     with fourth:
         _metric_card(
@@ -1019,7 +1019,7 @@ def render_pricing_estimate(estimate, pricing_rows=None) -> None:
         )
 
     # Calculate packaging and transport from total final price
-    packaging_total = estimate.total_final_price_gbp * 0.03
+    packaging_total = estimate.total_final_price_gbp * 0.02
     transport_total = estimate.total_final_price_gbp * 0.125
     packaging_per_unit = packaging_total / max(1, estimate.total_quantity)
     transport_per_unit = transport_total / max(1, estimate.total_quantity)
@@ -1052,14 +1052,19 @@ def render_pricing_estimate(estimate, pricing_rows=None) -> None:
                 "Total": _gbp(estimate.total_margin_gbp),
             },
             {
-                "Component": "Packaging (3%)",
+                "Component": "Packaging (2%) — added to invoice",
                 "Per unit": _gbp(packaging_per_unit),
                 "Total": _gbp(packaging_total),
             },
             {
-                "Component": "Transport (12.5%)",
+                "Component": "Transport (12.5%) — added to invoice",
                 "Per unit": _gbp(transport_per_unit),
                 "Total": _gbp(transport_total),
+            },
+            {
+                "Component": "TOTAL CLIENT INVOICE",
+                "Per unit": "",
+                "Total": _gbp(estimate.total_final_price_gbp + packaging_total + transport_total),
             },
         ],
         use_container_width=True,
