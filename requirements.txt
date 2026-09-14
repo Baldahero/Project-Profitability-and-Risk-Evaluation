@@ -1,4 +1,5 @@
-streamlit>=1.35
+streamlit
+pandas
+openpyxl
 reportlab
 scikit-learn
-joblib
