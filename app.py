@@ -6,6 +6,9 @@ import sys
 from datetime import date, timedelta
 from html import escape
 from pathlib import Path
+import joblib
+import pandas as pd
+from pathlib import Path
 
 # Auto-install reportlab if missing (needed on Streamlit Cloud)
 try:
