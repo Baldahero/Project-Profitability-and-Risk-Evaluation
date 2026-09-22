@@ -1,90 +1,181 @@
 # Construction Project Efficiency Estimator
 
-Python and Streamlit prototype for the master thesis topic: pre-contract construction project efficiency evaluation using transparent AI-supported decision logic.
+Python + Streamlit prototype for a master's thesis on pre-contract construction project efficiency and risk evaluation using AI-supported decision support.
 
-The prototype focuses on facade, door, and window installation projects. It combines:
+The project combines:
 
-- rule-based checks for margin, technical complexity, schedule feasibility, wind exposure, environmental conditions, PAS 24, RC2/RC3 and access control;
-- weighted scoring for an overall efficiency and risk level;
-- similarity-based comparison with historical projects;
-- material lead time and production readiness date estimation;
-- alerts and a project-specific engineering checklist.
+- a transparent rule-based evaluation engine;
+- weighted efficiency scoring;
+- Case-Based Reasoning using eight reference scenarios;
+- a supervised machine-learning comparison;
+- the selected Logistic Regression model as an ML second opinion in Streamlit;
+- agreement/disagreement handling between rule-based and ML outputs;
+- pricing, schedule, alerts, checklists, and PDF reporting.
 
-## Project Structure
+## Project structure
 
 ```text
-app.py                         Streamlit interface
-data/historical_projects.csv   Example historical similarity cases
-data/pricing_matrix.csv        Price matrix extracted from the Excel example
-src/project_evaluator/         Evaluation and similarity logic
-tests/test_evaluator.py        Existing core logic tests
-tests/test_security_rules.py   Security-rule regression tests
-THESIS_METHOD_NOTE.md          Exact data roles, assumptions and limitations
-requirements.txt               Runtime dependency list
+app.py
+requirements.txt
+README.md
+THESIS_METHOD_NOTE.md
+
+data/
+  Combined_Projects_Dataset_100_enriched_v2.xlsx
+  historical_projects.csv
+  pricing_matrix.csv
+
+ml/
+  model_config.py
+  train_ml.py
+  evaluate_ml.py
+
+src/
+  project_evaluator/
+
+tests/
+
+.github/workflows/
+  ml-evaluation.yml
 ```
 
-## Run
-
-Install Python 3.10 or newer first.
-
-Kali Linux / Debian:
+## Run the Streamlit prototype
 
 ```bash
-sudo apt update
-sudo apt install -y python3 python3-venv python3-pip
-python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install -r requirements.txt
-python3 -m streamlit run app.py
-```
-
-Windows:
-
-```powershell
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+# Windows:
+.\.venv\Scripts\activate
+# Linux/macOS:
+# source .venv/bin/activate
+
 python -m pip install -r requirements.txt
 python -m streamlit run app.py
 ```
 
-## Test
+## Run the ML experiment without Google Colab
 
-Kali Linux / Debian:
+Google Colab is no longer required to reproduce the thesis ML experiment.
+
+Run the full 11-configuration comparison:
 
 ```bash
-source .venv/bin/activate
-python3 -m unittest discover -s tests -v
+python ml/evaluate_ml.py --output-dir ml_results
 ```
 
-Windows:
+This reproduces:
 
-```powershell
+- 100 modelled project scenarios;
+- 17 selected ML features;
+- stratified 80/20 train/test split;
+- random_state = 42;
+- stratified 5-fold cross-validation on the 80-record training subset;
+- 11 model configurations;
+- held-out comparison of Rule-based, Random Forest, Decision Tree, and Logistic Regression;
+- class-level recall;
+- descriptive full-dataset rule-based result.
+
+Run only the thesis-selected Logistic Regression model:
+
+```bash
+python ml/train_ml.py
+```
+
+The selected configuration is:
+
+```text
+Logistic Regression
+C = 10
+max_iter = 5000
+random_state = 42
+```
+
+The final held-out thesis results are expected to reproduce the same experiment reported in the thesis when the same dataset and dependency versions are used.
+
+## GitHub Actions
+
+The repository includes:
+
+```text
+.github/workflows/ml-evaluation.yml
+```
+
+The workflow runs the ML evaluation automatically when files under `ml/`, the research dataset, or `requirements.txt` change. It also supports manual execution from the GitHub Actions tab.
+
+The workflow uploads the generated CSV result tables as the artifact:
+
+```text
+ml-thesis-results
+```
+
+## ML features
+
+The supervised ML component uses 17 pre-contract features.
+
+Numeric:
+- Num_Construction_Types
+- Total_Value_GBP
+- Fabrication_Hours
+
+Categorical:
+- Technical_Complexity
+- Profile_Type
+- Wind_Exposure
+- Region
+- RC2_Status
+- RC3_Status
+- PAS24_Status
+
+Binary:
+- Has_Windows
+- Has_External_Doors
+- Has_Sliding_Doors
+- Has_Folding_Doors
+- Has_Curtain_Wall
+- Has_High_Insulation
+- Has_Access_Control
+
+Target:
+
+```text
+Expert_Risk_Assessment
+```
+
+## Data roles
+
+- `data/Combined_Projects_Dataset_100_enriched_v2.xlsx`: 100 modelled expert-labelled scenarios for the ML comparison.
+- `data/historical_projects.csv`: eight reference scenarios used by the Case-Based Reasoning / similarity component.
+- `data/pricing_matrix.csv`: indicative pricing and fabrication-time data used by the prototype.
+
+The 100-row ML dataset and the eight-case reference set have different purposes and must not be treated as the same dataset.
+
+## Final prototype logic
+
+The operational Streamlit prototype combines:
+
+```text
+Project input
+   |
+   +--> Rule-based evaluation
+   |
+   +--> Logistic Regression prediction
+   |
+   +--> Reference-scenario similarity
+            |
+            v
+Agreement / disagreement check
+            |
+            v
+Decision-support output
+```
+
+The ML result is a second opinion and does not automatically override mandatory rule-based checks.
+
+Displayed ML confidence is a model probability within the scenario-based classifier. It must not be interpreted as a calibrated real-world probability of project success or failure.
+
+## Tests
+
+```bash
 python -m unittest discover -s tests -v
 ```
 
-## Security Rule Assumptions
-
-PAS 24 and the burglary-resistance class are separate inputs because a project may require both PAS 24 and RC2/RC3.
-
-| Input | Technical-score deduction | Extra preparation time |
-|---|---:|---:|
-| PAS 24 | 5 points | 0.5 week |
-| RC2 | 10 points | 1.0 week |
-| RC3 | 20 points | 2.0 weeks |
-| Access control / electric locking | 8 points | 1.0 week |
-
-The effects are cumulative. These values are transparent research assumptions, not certification records. Project evidence must be checked before tender approval.
-
-## Data Roles
-
-- `data/pricing_matrix.csv` supplies element prices and fabrication times.
-- `data/historical_projects.csv` contains eight illustrative reference cases used only for the historical-similarity component (10% of the rule-based score).
-- The separate 100-project research dataset is used for the ML proof-of-concept comparison. It must not replace `historical_projects.csv` because its schema and purpose are different.
-
-## Notes For Thesis Use
-
-The system is intentionally explainable. Each output is derived from visible rules and weights, which matches the thesis focus on managerial decision support rather than black-box prediction.
-
-The pricing matrix was extracted from the provided Excel example. The application uses it to calculate material, glass, labour, coating, margin, and final price in GBP before running the financial risk evaluation.
-
-See `THESIS_METHOD_NOTE.md` for the exact model description, data separation and limitations.
+See `THESIS_METHOD_NOTE.md` for the research-method alignment and limitations.
