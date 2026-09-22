@@ -1,0 +1,35 @@
+name: ML thesis experiment
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "ml/**"
+      - "data/Combined_Projects_Dataset_100_enriched_v2.xlsx"
+      - "requirements.txt"
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Run reproducible ML evaluation
+        run: python ml/evaluate_ml.py --output-dir ml_results
+
+      - name: Upload ML result tables
+        uses: actions/upload-artifact@v4
+        with:
+          name: ml-thesis-results
+          path: ml_results/
