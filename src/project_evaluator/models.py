@@ -131,3 +131,40 @@ class EvaluationResult:
     alerts: list[str] = field(default_factory=list)
     checklist: list[str] = field(default_factory=list)
     similar_projects: list[dict[str, Any]] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class TenderInput:
+    """Information from a public tender notice that is available before the tender closes."""
+    title: str
+    description: str = ""
+    estimated_value_gbp: float | None = None
+    procedure: str = "Open procedure"
+    cpv_code: str = ""
+    buyer_name: str = ""
+    lots: int = 1
+    buyer_activity: int = 1
+    framework_agreement: bool = False
+    dynamic_purchasing_system: bool = False
+    electronic_auction: bool = False
+    gpa_covered: bool = False
+    above_threshold: bool | None = None
+    legal_basis: str = "Procurement Act 2023"
+
+
+@dataclass(frozen=True)
+class MarketRiskResult:
+    probability_low_competition: float
+    low_competition: bool
+    threshold: float
+    top_factors: tuple[tuple[str, float], ...] = ()
+
+
+@dataclass(frozen=True)
+class BidRecommendation:
+    label: str
+    recommendation: str
+    internal_risk: str
+    low_competition: bool
+    critical_override: bool
+    reasons: tuple[str, ...] = ()
