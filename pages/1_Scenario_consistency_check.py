@@ -49,10 +49,10 @@ with left:
 with right:
     st.markdown("**Metamorphic relations**")
     st.dataframe(pd.DataFrame([{"Relation": k, "Checks": n, "Violations": v} for k, (n, v) in result["checks"].items()]),
-                 hide_index=True, use_container_width=True)
+                 hide_index=True, width="stretch")
     st.markdown("**Most frequent alerts**")
     st.dataframe(pd.DataFrame(result["top_alerts"], columns=["Alert", "Scenarios"]), hide_index=True,
-                 use_container_width=True)
+                 width="stretch")
 
 st.markdown("**Evaluation of each scenario**")
-st.dataframe(result["table"], hide_index=True, use_container_width=True)
+st.dataframe(result["table"], hide_index=True, width="stretch")
