@@ -7,6 +7,12 @@ from datetime import date, timedelta
 from html import escape
 from pathlib import Path
 import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 # Auto-install reportlab if missing (needed on Streamlit Cloud)
 try:
@@ -31,13 +37,47 @@ from project_evaluator import (
     load_historical_projects,
     load_pricing_matrix,
 )
-from project_evaluator.market_risk_ui import get_market_assessment, render_market_risk_section
 
 
 DATA_PATH = ROOT / "data" / "historical_projects.csv"
 PRICING_PATH = ROOT / "data" / "pricing_matrix.csv"
+ML_DATA_PATH = ROOT / "data" / "Combined_Projects_Dataset_100_enriched_v2.xlsx"
 PACKAGE_IDS_STATE_KEY = "element_package_ids"
 
+ML_NUMERIC_FEATURES = [
+    "Num_Construction_Types",
+    "Total_Value_GBP",
+    "Fabrication_Hours",
+]
+
+ML_CATEGORICAL_FEATURES = [
+    "Technical_Complexity",
+    "Profile_Type",
+    "Wind_Exposure",
+    "Region",
+    "RC2_Status",
+    "RC3_Status",
+    "PAS24_Status",
+]
+
+ML_BINARY_FEATURES = [
+    "Has_Windows",
+    "Has_External_Doors",
+    "Has_Sliding_Doors",
+    "Has_Folding_Doors",
+    "Has_Curtain_Wall",
+    "Has_High_Insulation",
+    "Has_Access_Control",
+]
+
+ML_FEATURES = (
+    ML_NUMERIC_FEATURES
+    + ML_CATEGORICAL_FEATURES
+    + ML_BINARY_FEATURES
+)
+
+ML_TARGET = "Expert_Risk_Assessment"
+ML_RANDOM_STATE = 42
 
 APP_CSS = """
 <style>
@@ -464,6 +504,78 @@ def get_pricing_rows():
     return load_pricing_matrix(PRICING_PATH)
 
 
+@st.cache_resource
+def get_ml_model():
+    """Train the selected Logistic Regression pipeline from the scenario dataset.
+
+    The preprocessing and model configuration match the final Google Colab experiment.
+    To preserve consistency with the reported held-out evaluation, the same stratified
+    80/20 split and random_state=42 are recreated and the deployed model is fitted only
+    on the 80-record training subset.
+    """
+    if not ML_DATA_PATH.exists():
+        return None
+
+    ml_df = pd.read_excel(ML_DATA_PATH)
+
+    missing_columns = [
+        column
+        for column in [*ML_FEATURES, ML_TARGET]
+        if column not in ml_df.columns
+    ]
+    if missing_columns:
+        raise ValueError(
+            "ML dataset is missing required columns: "
+            + ", ".join(missing_columns)
+        )
+
+    X = ml_df[ML_FEATURES].copy()
+    y = ml_df[ML_TARGET].copy()
+
+    X_train, _, y_train, _ = train_test_split(
+        X,
+        y,
+        test_size=0.20,
+        random_state=ML_RANDOM_STATE,
+        stratify=y,
+    )
+
+    numeric_pipeline = Pipeline([
+        ("imputer", SimpleImputer(strategy="median")),
+        ("scaler", StandardScaler()),
+    ])
+
+    categorical_pipeline = Pipeline([
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("onehot", OneHotEncoder(handle_unknown="ignore")),
+    ])
+
+    binary_pipeline = Pipeline([
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+    ])
+
+    preprocessor = ColumnTransformer([
+        ("num", numeric_pipeline, ML_NUMERIC_FEATURES),
+        ("cat", categorical_pipeline, ML_CATEGORICAL_FEATURES),
+        ("bin", binary_pipeline, ML_BINARY_FEATURES),
+    ])
+
+    model = Pipeline([
+        ("preprocess", preprocessor),
+        (
+            "model",
+            LogisticRegression(
+                C=10.0,
+                max_iter=5000,
+                random_state=ML_RANDOM_STATE,
+            ),
+        ),
+    ])
+
+    model.fit(X_train, y_train)
+    return model
+
+
 def _get_package_ids() -> list[int]:
     if PACKAGE_IDS_STATE_KEY not in st.session_state:
         st.session_state[PACKAGE_IDS_STATE_KEY] = [0]
@@ -488,6 +600,7 @@ def main() -> None:
 
     pricing_rows = get_pricing_rows()
     historical_projects = get_historical_projects()
+    ml_model = get_ml_model()
 
     input_column, output_column = st.columns([0.30, 0.70], gap="large")
 
@@ -496,12 +609,12 @@ def main() -> None:
             project, pricing_estimate = render_inputs(pricing_rows)
 
     result = evaluate_project(project, historical_projects)
-    market_assessment = get_market_assessment(result)
+    ml_assessment = predict_ml_risk(ml_model, project, pricing_estimate)
 
     with output_column:
-        render_header(project, result, pricing_estimate, market_assessment)
+        render_header(project, result, pricing_estimate, ml_assessment)
         render_summary(result, project)
-        render_market_risk_section(result, market_assessment)
+        render_ml_assessment(result, ml_assessment)
 
         price_tab, scoring_tab, matrix_tab, history_tab = st.tabs(
             ["Price Build-up", "Risk Logic", "Price Matrix", "Historical Cases"]
@@ -537,7 +650,7 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
             if st.button(
                 "Remove",
                 key=f"remove_package_{package_id}",
-                use_container_width=True,
+                width="stretch",
                 disabled=len(package_ids) == 1,
             ):
                 remove_package_id = package_id
@@ -579,7 +692,7 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
         _remove_package_row(remove_package_id)
         st.rerun()
 
-    if st.button("Add construction", use_container_width=True):
+    if st.button("Add construction", width="stretch"):
         _add_package_row()
         st.rerun()
 
@@ -733,7 +846,7 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
     return project, pricing_estimate
 
 
-def generate_pdf_report(project, result, pricing_estimate, market_assessment=None) -> bytes:
+def generate_pdf_report(project, result, pricing_estimate, ml_assessment=None) -> bytes:
     """Generate a PDF report and return it as bytes."""
     import io as _io
     from reportlab.lib import colors as rl_colors
@@ -829,25 +942,21 @@ def generate_pdf_report(project, result, pricing_estimate, market_assessment=Non
         story.append(Paragraph("No critical alerts for current inputs.", ParagraphStyle("RPOK", parent=normal_style, textColor=lime)))
     story.append(Spacer(1, 10))
 
-    # Market risk and bid recommendation
-    if market_assessment is not None:
-        market, rec = market_assessment
+    # Machine-learning second opinion
+    if ml_assessment is not None:
         story.append(HRFlowable(width="100%", thickness=0.5, color=line_color, spaceAfter=6))
-        story.append(Paragraph("MARKET RISK", eyebrow_style))
-        story.append(Paragraph("Tender Competition and Bid Recommendation", h2_style))
-        market_data = [
+        story.append(Paragraph("ML SECOND OPINION", eyebrow_style))
+        story.append(Paragraph("Logistic Regression Risk Prediction", h2_style))
+        rule_class = _normalize_rule_risk(result.risk_level)
+        agreement_text = "Agreement" if rule_class == ml_assessment["prediction"] else "Disagreement - review recommended"
+        ml_data = [
             ["METRIC", "VALUE"],
-            ["Probability of at most two bids", f"{market.probability_low_competition * 100:.0f}%"],
-            ["Expected competition", "Likely low" if market.low_competition else "Likely strong"],
-            ["Decision threshold", f"{market.threshold:.2f}"],
-            ["Internal evaluation", f"{rec.internal_risk} risk" + (" (critical issue)" if rec.critical_override else "")],
-            ["Bid recommendation", rec.label],
+            ["Rule-based class", rule_class],
+            ["ML predicted class", ml_assessment["prediction"]],
+            ["ML confidence", f'{ml_assessment["confidence"] * 100:.1f}%'],
+            ["Assessment comparison", agreement_text],
         ]
-        story.append(_tbl(market_data, [80*mm, 95*mm]))
-        story.append(Spacer(1, 4))
-        story.append(Paragraph(escape(rec.recommendation), normal_style))
-        if market.top_factors:
-            story.append(Paragraph("Main factors: " + "; ".join(escape(f) for f, _ in market.top_factors), small_style))
+        story.append(_tbl(ml_data, [80*mm, 95*mm]))
         story.append(Spacer(1, 10))
 
     # Pricing
@@ -905,7 +1014,7 @@ def generate_pdf_report(project, result, pricing_estimate, market_assessment=Non
 
 
 
-def render_header(project: ProjectInput, result, pricing_estimate, market_assessment=None) -> None:
+def render_header(project: ProjectInput, result, pricing_estimate, ml_assessment=None) -> None:
     tone = _risk_tone(result.risk_level)
     st.markdown(
         f"""
@@ -924,7 +1033,7 @@ def render_header(project: ProjectInput, result, pricing_estimate, market_assess
         """,
         unsafe_allow_html=True,
     )
-    pdf_bytes = generate_pdf_report(project, result, pricing_estimate, market_assessment)
+    pdf_bytes = generate_pdf_report(project, result, pricing_estimate, ml_assessment)
     filename = project.project_name.lower().replace(" ", "_") + ".pdf"
     st.download_button(
         label="📄 Download PDF Report",
@@ -991,6 +1100,67 @@ def render_summary(result, project: ProjectInput) -> None:
         _callout("No critical alerts", ["Current inputs do not trigger a critical alert."], "good")
 
 
+def render_ml_assessment(result, ml_assessment) -> None:
+    st.markdown(
+        """
+        <div class="section-heading">
+            <p class="eyebrow">Machine-learning second opinion</p>
+            <h2>AI risk prediction</h2>
+            <p>The selected Logistic Regression model complements the transparent rule-based assessment.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if ml_assessment is None:
+        st.info(
+            "ML dataset was not found. Add "
+            "data/Combined_Projects_Dataset_100_enriched_v2.xlsx "
+            "to enable the machine-learning prediction."
+        )
+        return
+
+    rule_class = _normalize_rule_risk(result.risk_level)
+    ml_class = ml_assessment["prediction"]
+    confidence = ml_assessment["confidence"]
+    agreement = rule_class == ml_class
+
+    first, second, third = st.columns(3)
+    with first:
+        _metric_card("Rule-based class", rule_class, "Transparent weighted scoring.", _class_tone(rule_class))
+    with second:
+        _metric_card("ML prediction", ml_class, "Logistic Regression (C=10).", _class_tone(ml_class))
+    with third:
+        _metric_card("ML confidence", f"{confidence * 100:.1f}%", "Highest predicted class probability.")
+
+    if agreement:
+        _callout(
+            "Assessments agree",
+            [f"Both approaches classify the project as {ml_class} risk."],
+            "good" if ml_class == "Low" else "watch" if ml_class == "Medium" else "critical",
+        )
+    else:
+        _callout(
+            "Assessment disagreement",
+            [
+                f"Rule-based assessment: {rule_class} risk.",
+                f"Machine-learning prediction: {ml_class} risk.",
+                "Additional professional review is recommended before tender approval.",
+            ],
+            "critical",
+        )
+
+    probabilities = ml_assessment["probabilities"]
+    st.dataframe(
+        [
+            {"Risk class": risk_class, "Probability": f"{probabilities.get(risk_class, 0.0) * 100:.1f}%"}
+            for risk_class in ("Low", "Medium", "High")
+        ],
+        width="stretch",
+        hide_index=True,
+    )
+
+
 def render_pricing_estimate(estimate, pricing_rows=None) -> None:
     heading = "Element price estimate" if estimate.package_count == 1 else "Package price estimate"
     st.markdown(
@@ -1040,7 +1210,7 @@ def render_pricing_estimate(estimate, pricing_rows=None) -> None:
                 }
                 for item in estimate.estimates
             ],
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -1093,7 +1263,7 @@ def render_pricing_estimate(estimate, pricing_rows=None) -> None:
                 "Total": _gbp(estimate.total_final_price_gbp + packaging_total + transport_total),
             },
         ],
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -1139,7 +1309,7 @@ def render_explainability(result) -> None:
             }
             for key, value in result.score_breakdown.items()
         ],
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -1167,7 +1337,7 @@ def render_price_matrix(pricing_rows, estimate) -> None:
         unsafe_allow_html=True,
     )
 
-    st.dataframe(pricing_rows, use_container_width=True, hide_index=True)
+    st.dataframe(pricing_rows, width="stretch", hide_index=True)
     with st.expander("Selected source rows" if estimate.package_count > 1 else "Selected source row"):
         if estimate.package_count == 1:
             st.json(estimate.estimates[0].source_row)
@@ -1186,7 +1356,7 @@ def render_price_matrix(pricing_rows, estimate) -> None:
                     }
                     for item in estimate.estimates
                 ],
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
@@ -1201,7 +1371,88 @@ def render_historical_context(result) -> None:
         """,
         unsafe_allow_html=True,
     )
-    st.dataframe(result.similar_projects, use_container_width=True, hide_index=True)
+    st.dataframe(result.similar_projects, width="stretch", hide_index=True)
+
+
+def predict_ml_risk(model, project: ProjectInput, pricing_estimate):
+    """Create the 17-feature row used in the thesis ML experiment and predict risk."""
+    if model is None:
+        return None
+
+    ml_input = _build_ml_input(project, pricing_estimate)
+    prediction = str(model.predict(ml_input)[0])
+    probabilities_raw = model.predict_proba(ml_input)[0]
+    classes = [str(value) for value in model.classes_]
+    probabilities = {name: float(prob) for name, prob in zip(classes, probabilities_raw)}
+
+    return {
+        "prediction": prediction,
+        "confidence": float(max(probabilities_raw)),
+        "probabilities": probabilities,
+        "input": ml_input,
+    }
+
+
+def _build_ml_input(project: ProjectInput, pricing_estimate) -> pd.DataFrame:
+    element_types = [
+        str(item.source_row.get("element_type", "")).strip().lower()
+        for item in pricing_estimate.estimates
+    ]
+    unique_element_types = {value for value in element_types if value}
+
+    has_windows = int(any("window" in value for value in element_types))
+    has_sliding_doors = int(any("sliding" in value for value in element_types))
+    has_folding_doors = int(any("folding" in value for value in element_types))
+    has_external_doors = int(
+        any(
+            "door" in value and "sliding" not in value and "folding" not in value
+            for value in element_types
+        )
+    )
+    has_curtain_wall = int(
+        any(
+            "facade" in value or "façade" in value or "curtain" in value
+            for value in element_types
+        )
+    )
+
+    thermal_values = [
+        str(item.source_row.get("thermal_performance", "")).strip().lower()
+        for item in pricing_estimate.estimates
+    ]
+    has_high_insulation = int(any(_is_high_insulation(value) for value in thermal_values))
+
+    profile_type = "Non-standard" if project.non_standard_profiles else "Standard"
+    rc2_status = "Yes" if project.resistance_class == "RC2" else "No"
+    rc3_status = "Yes" if project.resistance_class == "RC3" else "No"
+    pas24_status = "Yes" if project.pas24_required else "No"
+
+    return pd.DataFrame(
+        [{
+            "Num_Construction_Types": len(unique_element_types),
+            "Total_Value_GBP": float(project.contract_value),
+            "Fabrication_Hours": float(pricing_estimate.total_fabrication_time_hours),
+            "Technical_Complexity": project.technical_complexity,
+            "Profile_Type": profile_type,
+            "Wind_Exposure": project.wind_exposure,
+            "Region": project.region,
+            "RC2_Status": rc2_status,
+            "RC3_Status": rc3_status,
+            "PAS24_Status": pas24_status,
+            "Has_Windows": has_windows,
+            "Has_External_Doors": has_external_doors,
+            "Has_Sliding_Doors": has_sliding_doors,
+            "Has_Folding_Doors": has_folding_doors,
+            "Has_Curtain_Wall": has_curtain_wall,
+            "Has_High_Insulation": has_high_insulation,
+            "Has_Access_Control": int(project.access_control_required),
+        }]
+    )
+
+
+def _is_high_insulation(value: str) -> bool:
+    value = value.casefold()
+    return any(token in value for token in ("high", "0.9", "0,9", "passive", "enhanced"))
 
 
 def _normalize_rule_risk(risk_level: str) -> str:

@@ -127,6 +127,10 @@ def evaluate_project(
         1,
     )
     risk_level = _risk_level(efficiency_score)
+    # Mandatory checks take precedence over the weighted score: a requested deadline before the
+    # material readiness date or a margin below 5% always classifies the project as high risk.
+    if schedule_score == 0 or margin_percent < 5:
+        risk_level = HIGH_RISK_LEVEL
 
     _extend_checklist(project, readiness_date, protection_requirement, similar_projects, checklist)
 
@@ -486,12 +490,15 @@ def _project_similarity(project: ProjectInput, historical: HistoricalProject) ->
     return score * 100
 
 
+HIGH_RISK_LEVEL = "High risk / revise before tender"
+
+
 def _risk_level(score: float) -> str:
     if score >= 75:
         return "Low risk / high efficiency"
     if score >= 55:
         return "Medium risk / acceptable with checks"
-    return "High risk / revise before tender"
+    return HIGH_RISK_LEVEL
 
 
 def _extend_checklist(

@@ -77,7 +77,7 @@ def render_market_risk_section(
         threshold = st.slider("Decision threshold", 0.20, 0.70,
                               float(st.session_state.get(THRESHOLD_KEY, DEFAULT_THRESHOLD)), 0.05,
                               help="0.40 is recommended for screening tenders (thesis, Section 3.6).")
-        submitted = st.form_submit_button("Assess market risk", use_container_width=True)
+        submitted = st.form_submit_button("Assess market risk", width="stretch")
 
     if submitted:
         if not title.strip():
@@ -114,7 +114,7 @@ def render_market_risk_section(
 
     st.markdown("**Main factors of the market-risk prediction** (positive = fewer bidders expected)")
     st.dataframe([{"Factor": f, "Contribution": c} for f, c in market.top_factors],
-                 use_container_width=True, hide_index=True)
+                 width="stretch", hide_index=True)
     if st.button("Clear tender"):
         st.session_state.pop(TENDER_KEY, None)
         st.rerun()

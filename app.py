@@ -537,7 +537,7 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
             if st.button(
                 "Remove",
                 key=f"remove_package_{package_id}",
-                use_container_width=True,
+                width="stretch",
                 disabled=len(package_ids) == 1,
             ):
                 remove_package_id = package_id
@@ -579,7 +579,7 @@ def render_inputs(pricing_rows) -> tuple[ProjectInput, object]:
         _remove_package_row(remove_package_id)
         st.rerun()
 
-    if st.button("Add construction", use_container_width=True):
+    if st.button("Add construction", width="stretch"):
         _add_package_row()
         st.rerun()
 
@@ -1040,7 +1040,7 @@ def render_pricing_estimate(estimate, pricing_rows=None) -> None:
                 }
                 for item in estimate.estimates
             ],
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -1093,7 +1093,7 @@ def render_pricing_estimate(estimate, pricing_rows=None) -> None:
                 "Total": _gbp(estimate.total_final_price_gbp + packaging_total + transport_total),
             },
         ],
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -1139,7 +1139,7 @@ def render_explainability(result) -> None:
             }
             for key, value in result.score_breakdown.items()
         ],
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -1167,7 +1167,7 @@ def render_price_matrix(pricing_rows, estimate) -> None:
         unsafe_allow_html=True,
     )
 
-    st.dataframe(pricing_rows, use_container_width=True, hide_index=True)
+    st.dataframe(pricing_rows, width="stretch", hide_index=True)
     with st.expander("Selected source rows" if estimate.package_count > 1 else "Selected source row"):
         if estimate.package_count == 1:
             st.json(estimate.estimates[0].source_row)
@@ -1186,7 +1186,7 @@ def render_price_matrix(pricing_rows, estimate) -> None:
                     }
                     for item in estimate.estimates
                 ],
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
@@ -1201,7 +1201,7 @@ def render_historical_context(result) -> None:
         """,
         unsafe_allow_html=True,
     )
-    st.dataframe(result.similar_projects, use_container_width=True, hide_index=True)
+    st.dataframe(result.similar_projects, width="stretch", hide_index=True)
 
 
 def _normalize_rule_risk(risk_level: str) -> str:
