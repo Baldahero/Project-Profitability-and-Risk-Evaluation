@@ -12,6 +12,9 @@ door projects with two components:
   predicted from the tender notice by Logistic Regression on tabular and text features, trained on
   5,735 UK public construction tenders (Find a Tender Service, 2021–2026; ROC AUC 0.83 in nested
   cross-validation, 0.80 on 2025–2026).
+- **Scenario consistency check:** a second page of the app (`pages/1_Scenario_consistency_check.py`) evaluates
+  100 illustrative scenarios (`data/illustrative_scenarios.xlsx`, defined by the author, not actual projects) and
+  runs 640 metamorphic checks of the rules (0 violations). Command line: `python scripts/rule_consistency_check.py`.
 - **Bid recommendation:** both results are combined in a decision matrix (thesis, Table 13). Critical internal
   issues (requested deadline before material readiness, margin below 5 %) always take precedence.
 
@@ -24,14 +27,20 @@ requirements.txt
 data/
   historical_projects.csv      eight reference scenarios for the similarity component
   pricing_matrix.csv           indicative pricing and fabrication-time data
+  illustrative_scenarios.xlsx  100 illustrative scenarios for the consistency check
+pages/
+  1_Scenario_consistency_check.py   Streamlit page with the scenario-based consistency check
+scripts/
+  rule_consistency_check.py    command-line version of the check
 src/project_evaluator/
   evaluator.py                 rule-based internal evaluation
   pricing.py                   pricing matrix and cost estimation
   market_risk.py               market-risk prediction and decision matrix
   market_risk_ui.py            Streamlit section for the market risk
+  scenarios.py                 illustrative scenarios and metamorphic checks
   market_risk_model.joblib     trained market-risk model
   models.py                    data classes
-tests/                         unit tests (22)
+tests/                         unit tests (23)
 .github/workflows/tests.yml    runs the tests on every push
 ```
 
